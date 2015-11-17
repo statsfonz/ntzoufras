@@ -1,2 +1,2 @@
 # ntzoufras
-Bayesian Modeling with WinBugs code in JAGS
+<i> Bayesian Modeling with WinBugs </i> code in JAGS
