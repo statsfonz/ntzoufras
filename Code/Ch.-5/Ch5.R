@@ -156,10 +156,12 @@ setwd(working.directory)
 dir.create("Problems")
 dir.create("Problems/5.1")
 setwd(paste0(working.directory,"/Problems/5.1"))
-hubble<-read.data("hubble.txt", sep="\t", header=T)
+hubble<-read.table("hubble.txt", sep="\t", header=T)
 #classical regression
 model<-lm(recession_velocity~distance, data=hubble)
 summary(model)
+model1<-lm(recession_velocity~distance-1, data=hubble)
+summary(model1)
 #JAGS
 cat("model{
 	for (i in 1:",dim(hubble)[1],"){
@@ -182,30 +184,16 @@ summary(hubblecoda1)
 plot(hubblecoda1)
 #We can see beta[1] includes 0 as the 95% credible interval is (-39,200)
 
-#Problem 5.1(b)-(e)
+#Problem 5.1(b)-(d)
 cat("model{
 	for (i in 1:",dim(hubble)[1],"){
-		recession_velocity[i]~dnorm(mu[i],tau[1])
+		recession_velocity[i]~dnorm(mu[i],tau)
 		mu[i]<-beta[1]+beta[2]*distance[i]
-
-		recession_velocity[i]~dnorm(mu2[i],tau[2])
-		mu2[i]<-beta2[1]+beta2[2]*distance[i]
-
-		recession_velocity[i]~dnorm(mu3[i],tau[3])
-		mu3[i]<-beta3[i]+beta3[i]*distance[i]
 	}
 	beta[1]<-0
-	beta2[1]<-0
-	beta3[1]<-0
-	for (j in 2:2){
-	beta[j]~dnorm(0,1/100)
-	beta2[j]~dnorm(0,1/1000)
-	beta3[j]~dnorm(0,1/10^4)
-	}
-	for (k in 1:3){
-	tau[k] ~dgamma( 0.01, 0.01)
-	s[k] <- sqrt(1/tau[k]) # precision
-	}
+	beta[2]~dnorm(0,1/10000)
+	tau ~dgamma( 0.01, 0.01)
+	s <- sqrt(1/tau) # precision
 	age<-1/beta[2]
 }", file="hubble2.jag")
 
@@ -215,8 +203,132 @@ update(hubbleModel2, n.iter=1000)
 hubblecoda2<-coda.samples(hubbleModel2, c("beta[2]","age","s"), n.iter=2000)
 summary(hubblecoda2)
 plot(hubblecoda2)
-#We can see mean(beta[2])=350, Credible interval=(255,432)
+#We can see mean(beta[2])=346, Credible interval=(244,435)
 #Hubble's estimated value of 75 is not included in the interval
 #Age is estimated as well for part (d)
 
-#5.1(e)
+#Problem 5.1(e)
+cat("model{
+	for (i in 1:",dim(hubble)[1],"){
+		recession_velocity[i]~dnorm(mu[i],tau)
+		mu[i]<-beta[1]+beta[2]*distance[i]
+	}
+	beta[1]<-0
+	beta[2]~dnorm(0,1/100)
+	tau ~dgamma( 0.01, 0.01)
+	s <- sqrt(1/tau) # precision
+	age<-1/beta[2]
+}", file="hubble3.jag")
+
+hubble_inits3<-list( beta=c(NA,1), tau=0.1)
+hubbleModel3<-jags.model(data=hubble,inits=hubble_inits3,n.chains=1,n.adapt=500, file="hubble3.jag")
+update(hubbleModel3, n.iter=1000)
+hubblecoda3<-coda.samples(hubbleModel3, c("beta[2]","age","s"), n.iter=2000)
+summary(hubblecoda3)
+plot(hubblecoda3)
+#We can see mean(beta[2])=5, Credible interval=(-15,25)
+#Hubble's estimated value of 75 is not included in the interval
+#Age is estimated as well for part (d)
+
+cat("model{
+	for (i in 1:",dim(hubble)[1],"){
+		recession_velocity[i]~dnorm(mu[i],tau)
+		mu[i]<-beta[1]+beta[2]*distance[i]
+	}
+	beta[1]<-0
+	beta[2]~dnorm(0,1/1000)
+	tau ~dgamma( 0.01, 0.01)
+	s <- sqrt(1/tau) # precision
+	age<-1/beta[2]
+}", file="hubble4.jag")
+
+hubble_inits4<-list( beta=c(NA,1), tau=0.1)
+hubbleModel4<-jags.model(data=hubble,inits=hubble_inits4,n.chains=1,n.adapt=500, file="hubble4.jag")
+update(hubbleModel4, n.iter=1000)
+hubblecoda4<-coda.samples(hubbleModel4, c("beta[2]","age","s"), n.iter=2000)
+summary(hubblecoda4)
+plot(hubblecoda4)
+#We can see mean(beta[2])=49, Credible interval=(-11,112)
+#Hubble's estimated value of 75 is now included in the interval
+#Age is estimated as well for part (d)
+
+#5.1(f)
+
+cat("model{
+	for (i in 1:",dim(hubble)[1],"){
+		recession_velocity[i]~dnorm(mu[i],tau)
+		mu[i]<-beta[1]+beta[2]*distance[i]
+	}
+	beta[1]<-0
+	beta[2]~dnorm(75,1/10000)
+	tau ~dgamma( 0.01, 0.01)
+	s <- sqrt(1/tau) # precision
+	age<-1/beta[2]
+}", file="hubble5.jag")
+
+hubble_inits5<-list( beta=c(NA,1), tau=0.1)
+hubbleModel5<-jags.model(data=hubble,inits=hubble_inits5,n.chains=1,n.adapt=500, file="hubble5.jag")
+update(hubbleModel5, n.iter=1000)
+hubblecoda5<-coda.samples(hubbleModel5, c("beta[2]","age","s"), n.iter=2000)
+summary(hubblecoda5)
+plot(hubblecoda5)
+#We can see mean(beta[2])=365, Credible interval=(273,449)
+#Hubble's estimated value of 75 is not included in the interval
+#Age is estimated as well
+
+
+cat("model{
+	for (i in 1:",dim(hubble)[1],"){
+		recession_velocity[i]~dnorm(mu[i],tau)
+		mu[i]<-beta[1]+beta[2]*distance[i]
+	}
+	beta[1]<-0
+	beta[2]~dnorm(425,1/10000)
+	tau ~dgamma( 0.01, 0.01)
+	s <- sqrt(1/tau) # precision
+	age<-1/beta[2]
+}", file="hubble6.jag")
+
+hubble_inits6<-list( beta=c(NA,1), tau=0.1)
+hubbleModel6<-jags.model(data=hubble,inits=hubble_inits6,n.chains=1,n.adapt=500, file="hubble6.jag")
+update(hubbleModel6, n.iter=1000)
+hubblecoda6<-coda.samples(hubbleModel6, c("beta[2]","age","s"), n.iter=2000)
+summary(hubblecoda6)
+plot(hubblecoda6)
+#We can see mean(beta[2])=424, Credible interval=(349,507)
+#Hubble's estimated value of 75 is not included in the interval
+#Age is estimated as well
+
+#5.1(g)
+
+for(i in 1:dim(hubble)[1])
+{
+	if(hubble$recession_velocity[i]>=0)
+		hubble$Ind[i]<-1
+	else
+		hubble$Ind[i]<-0
+}
+
+cat("model{
+	for (i in 1:",dim(hubble)[1],"){
+		recession_velocity[i]~dnorm(mu[i],tau)
+		mu[i]<-beta[1,1]*Ind[i]+beta[2,1]*Ind[i]*distance[i]+beta[1,2]*(1-Ind[i])+beta[2,2]*(1-Ind[i])*distance[i]
+	}
+	
+	for (j in 1:2){	
+	beta[1,j]<-0
+	beta[2,j]~dnorm(0,1/10000)
+	age[j]<-1/beta[2,j]
+	}
+	tau ~dgamma( 0.01, 0.01)
+	s <- sqrt(1/tau) # precision
+}", file="hubble7.jag")
+
+hubble_inits7<-list(beta=matrix(data=c(NA,1,NA,1), nrow=2, ncol=2), tau=0.1)
+hubbleModel7<-jags.model(data=hubble,inits=hubble_inits7,n.chains=1,n.adapt=500, file="hubble7.jag")
+update(hubbleModel7, n.iter=1000)
+hubblecoda7<-coda.samples(hubbleModel7, c("beta[2,1]","beta[2,2]","s"), n.iter=2000)
+summary(hubblecoda7)
+plot(hubblecoda7)
+#mean for beta[2] for positive values is 388, negatives is -39
+#models are very different
