@@ -127,9 +127,9 @@ model{
 
 
 chap6ex1_2_inits<-list(beta=c(0,0,0,0,0,0,0,0,0,0), tau=1.0)
-chap6ex2Model<-jags.model(data=ex6_1.spq.indiv,inits=chap6ex1_2_inits,n.chains=1,n.adapt=500, file="chap6ex1-2.jag")
-update(chap6ex2Model, n.iter=5000)
-R2<- coda.samples(chap6ex2Model,c("beta", "s"),n.iter=2000)
+chap6ex1_2Model<-jags.model(data=ex6_1.spq.indiv,inits=chap6ex1_2_inits,n.chains=1,n.adapt=500, file="chap6ex1-2.jag")
+update(chap6ex1_2Model, n.iter=5000)
+R2<- coda.samples(chap6ex1_2Model,c("beta", "s"),n.iter=2000)
 summary(R2)
 
 #------------------------------------------------------------------------------------------------------------------------------
@@ -178,8 +178,85 @@ model{
 }",file="chap6ex1-3.jag")
 
 chap6ex1_3_inits<-list(beta=c(0,0,0,0,0,0,0), tau=1.0)
-chap6ex3Model<-jags.model(data=ex6_1.spq.indiv,inits=chap6ex1_3_inits,n.chains=1,n.adapt=500, file="chap6ex1-3.jag")
-update(chap6ex3Model, n.iter=5000)
-R3<- coda.samples(chap6ex3Model,c("beta", "s"),n.iter=2000)
+chap6ex1_3Model<-jags.model(data=ex6_1.spq.indiv,inits=chap6ex1_3_inits,n.chains=1,n.adapt=500, file="chap6ex1-3.jag")
+update(chap6ex1_3Model, n.iter=5000)
+R3<- coda.samples(chap6ex1_3Model,c("beta", "s"),n.iter=2000)
 summary(R3)
 #gives similar table as p.196
+
+#Ex 6.2 (p.203)
+setwd(working.directory)
+dir.create("Ex 6.2")
+setwd(paste0(working.directory, "/Ex 6.2"))
+#Assume same slope for both drugs, different intercept
+#------------------------------------------------------------------------------------------------------------------------------
+#Version 1 (simple)
+#------------------------------------------------------------------------------------------------------------------------------
+cat("data {n=24}
+  model{
+  # model's likelihood
+  for (i in 1:n){
+    y[i] ~ dnorm( mu[i], tau )
+    mu[i] <- beta0[drug[i]] + beta1*log(dose[i]) 
+  }
+  #
+  # relative potency
+  rho <- exp( (beta0[2]-beta0[1])/beta1 )
+  # potency estimate
+  potency <- rho * 1.2     
+  #
+  # prior distributions
+  beta0[1] ~ dnorm( 0.0, 0.001)  # constant for standard treatment
+  beta0[2] ~ dnorm( 0.0, 0.001)  # constant for test treatment
+  beta1    ~ dnorm( 0.0, 0.001)  # slope 
+  tau      ~ dgamma( 0.001, 0.001) # precision of regression model		
+  s <- 1/sqrt(tau) # standard error of regression
+  #
+  # test rho>1 (test more potent) 
+  more.potent21 <- step(rho-1)
+  #
+  intercept.difference <- beta0[2]-beta0[1]
+}", file="chap6ex2-1.jag")
+
+#Had to fix initial value for beta1 since we are dividing by beta1 in the "rho" variable
+chap6ex2_1_inits<-list(beta0=c(0,0), beta1=1, tau=1)
+chap6ex2_1Model<-jags.model(data=ex6_2.bioassay, inits=chap6ex2_1_inits, n.chains=1, n.adapt=500, file="chap6ex2-1.jag")
+update(chap6ex2_1Model, n.iter=10000)
+R2_1<- coda.samples(chap6ex2_1Model,c("beta0", "beta1","potency","rho","s","tau"),n.iter=2000)
+summary(R2_1)
+plot(R2_1[,1:3])
+plot(R2_1[,4:6])
+#Ex 6.2 (CTR/STZ Dummies)
+cat("data {n=24}
+  model{
+  for (i in 1:n){
+    Test[i] <- equals( drug[i], 2 ) # CR dummy for test treatment
+    #Test[i] <- equals( drug[i], 2 )-equals( drug[i], 1 ) # STZ dummy
+    # model likelihood
+    y[i] ~ dnorm( mu[i], tau )
+    mu[i] <- beta0+ alpha2*Test[i] + beta1*log(dose[i]) 
+    #track error rate
+    y.rep[i]~dnorm(mu[i], tau)
+    err[i]<-y[i]-y.rep[i]
+  }
+  #
+  
+  rho <- exp( alpha2/beta1 ) # relative potency in CR
+  #rho <- exp( 2*alpha2/beta1 ) # relative potency in stz
+  # potency estimate
+  potency <- rho * 1.2     
+  #
+  # prior distributions
+  beta0 ~ dnorm( 0.0, 0.001)     # constant for standard treatment
+  alpha2 ~ dnorm( 0.0, 0.001)    # effect of test treatment
+  beta1    ~ dnorm( 0.0, 0.001)  # slope 
+  tau      ~ dgamma( 0.001, 0.001) # precision of regression model		
+  s <- 1/sqrt(tau) # standard error of regression
+}", file="chap6ex2-2.jag")
+chap6ex2_2_inits<-list(beta0=0, alpha2=0, beta1=1, tau=1)
+chap6ex2_2Model<-jags.model(data=ex6_2.bioassay, inits=chap6ex2_2_inits, n.chains=2, n.adapt=500, file="chap6ex2-2.jag")
+update(chap6ex2_2Model, n.iter=10000)
+R2_2<- coda.samples(chap6ex2_2Model,c("beta0", "alpha2", "beta1","potency","rho","s","tau", "err[5]"),n.iter=25000, thin=5)
+summary(R2_2)
+plot(R2_2[,4:6])
+
